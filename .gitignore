@@ -9,3 +9,6 @@ mlruns/
 mlflow.db
 .pytest_cache/
 node_modules/
+.venv/
+venv/
+data/
