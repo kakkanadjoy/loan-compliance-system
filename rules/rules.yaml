@@ -1,0 +1,158 @@
+# rules.yaml — single source of truth for the loan compliance system.
+# Generates: (1) the policy markdown corpus for RAG, (2) training labels
+# via the rules engine, (3) runtime deterministic exception checks,
+# (4) golden-set eval expectations.
+#
+# waiver_authority levels (ordered): underwriter < credit_manager < credit_committee
+# not_waivable = no level may waive; routes per `override` if set.
+
+meta:
+  version: "1.0.0"
+  policy_manual: "Commercial Credit Policy Manual"
+  authority_levels: [underwriter, credit_manager, credit_committee]
+
+rules:
+  - id: LTV-EQ-001
+    section: "4.2.1"
+    title: "Maximum LTV — equipment loans"
+    applies_to: { loan_type: equipment }
+    check: { field: ltv_ratio, op: "<=", threshold: 0.80 }
+    exception_code: E-101
+    severity: medium
+    waiver_authority: credit_manager
+    effective: 2025-03-01
+    expires: null
+    text: >
+      Equipment loans shall not exceed 80% loan-to-value based on the lesser
+      of purchase price or appraised value. Requests above this ceiling require
+      a documented policy exception approved at credit manager level or above,
+      supported by compensating factors such as strong debt service coverage
+      or additional collateral.
+
+  - id: LTV-CRE-001
+    section: "4.2.2"
+    title: "Maximum LTV — commercial real estate"
+    applies_to: { loan_type: cre }
+    check: { field: ltv_ratio, op: "<=", threshold: 0.75 }
+    exception_code: E-102
+    severity: medium
+    waiver_authority: credit_manager
+    effective: 2025-03-01
+    expires: null
+    text: >
+      Commercial real estate loans shall not exceed 75% loan-to-value based on
+      a current appraisal performed by an approved appraiser. Exceptions require
+      credit manager approval with documented compensating factors.
+
+  - id: DTI-ALL-001
+    section: "4.3.1"
+    title: "Maximum debt-to-income ratio"
+    applies_to: { loan_type: any }
+    check: { field: dti_ratio, op: "<=", threshold: 0.45 }
+    exception_code: E-110
+    severity: medium
+    waiver_authority: credit_manager
+    effective: 2025-03-01
+    expires: null
+    text: >
+      Total obligor debt-to-income shall not exceed 45%. Ratios between 45%
+      and 50% may be approved at credit manager level with verified liquidity
+      reserves of at least six months of obligations. Ratios above 50% require
+      credit committee approval.
+
+  - id: FICO-ALL-001
+    section: "4.4.1"
+    title: "Minimum credit score"
+    applies_to: { loan_type: any }
+    check: { field: fico_score, op: ">=", threshold: 660 }
+    exception_code: E-120
+    severity: high
+    waiver_authority: credit_committee
+    effective: 2025-03-01
+    expires: null
+    text: >
+      The principal obligor shall have a credit score of at least 660. Scores
+      between 620 and 659 require credit committee approval and enhanced
+      monitoring. Scores below 620 are outside program eligibility.
+
+  - id: DOC-ALL-001
+    section: "5.1.1"
+    title: "Required documentation"
+    applies_to: { loan_type: any }
+    check: { field: doc_completeness, op: ">=", threshold: 1.0 }
+    exception_code: E-130
+    severity: low
+    waiver_authority: credit_manager
+    effective: 2025-03-01
+    expires: null
+    text: >
+      A complete application package includes the signed application, three
+      years of financial statements or tax returns, a current credit report,
+      collateral valuation, purchase agreement where applicable, and evidence
+      of insurance. Missing non-critical items may be waived at credit manager
+      level with a documented follow-up condition; the package must be complete
+      prior to funding.
+
+  - id: INC-ALL-001
+    section: "6.2.1"
+    title: "Income verification consistency"
+    applies_to: { loan_type: any }
+    check: { field: income_discrepancy_pct, op: "<=", threshold: 0.10 }
+    exception_code: E-140
+    severity: high
+    waiver_authority: credit_committee
+    effective: 2025-03-01
+    expires: null
+    text: >
+      Stated income must be verified against supporting documentation. A
+      variance greater than 10% between stated and documented income must be
+      resolved and re-verified prior to approval.
+
+  - id: INC-ALL-002
+    section: "6.2.2"
+    title: "Suspected misrepresentation"
+    applies_to: { loan_type: any }
+    check: { field: income_discrepancy_pct, op: "<=", threshold: 0.25 }
+    exception_code: E-141
+    severity: severe
+    waiver_authority: not_waivable
+    override: compliance
+    effective: 2025-03-01
+    expires: null
+    text: >
+      A variance greater than 25% between stated and documented income, or any
+      indication of altered documentation, constitutes suspected
+      misrepresentation. Such findings are not waivable at any authority level
+      and must be referred directly to the compliance officer for review under
+      the institution's fraud and fair lending procedures.
+
+  - id: AMT-ALL-001
+    section: "4.5.1"
+    title: "Jumbo exposure review"
+    applies_to: { loan_type: any }
+    check: { field: loan_amount, op: "<=", threshold: 1000000 }
+    exception_code: E-150
+    severity: medium
+    waiver_authority: credit_committee
+    effective: 2025-03-01
+    expires: null
+    text: >
+      Aggregate new exposure above $1,000,000 to a single obligor requires
+      credit committee review regardless of other risk characteristics.
+
+severity_weights:
+  low: 0.10
+  medium: 0.25
+  high: 0.45
+  severe: 0.85
+
+required_documents:
+  equipment: [application, financials, credit_pull, tax_returns, appraisal, insurance_binder]
+  working_capital: [application, financials, credit_pull, tax_returns]
+  cre: [application, financials, credit_pull, tax_returns, appraisal, insurance_binder]
+
+routing:
+  triage_fast_track_below: 0.40
+  senior_band_at_or_above: 0.70
+  escalation_probability_at_or_above: 0.50
+  max_resubmit_attempts: 3

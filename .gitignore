@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.env
+secrets/
+data/loans/records.jsonl
+data/loans/packets/
+models/
+mlruns/
+mlflow.db
+.pytest_cache/
+node_modules/
