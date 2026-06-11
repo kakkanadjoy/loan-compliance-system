@@ -211,7 +211,14 @@ def main() -> None:
 
     record = load_record(args.loan_id)
     store, used = open_store(args.store)
-    final = review_loan(record, store=store)
+
+    from agent.llm_memo import llm_available, llm_memo_drafter
+    if llm_available():
+        drafter, drafter_name = llm_memo_drafter, "azure llm"
+    else:
+        drafter, drafter_name = template_memo, "template"
+    graph = build_graph(store=store, memo_drafter=drafter)
+    final = graph.invoke({"record": record, "path": []})
 
     if args.as_json:
         out = {k: v for k, v in final.items() if k != "record"}
@@ -220,7 +227,7 @@ def main() -> None:
     print("path: " + " -> ".join(final["path"]))
     print()
     print(final["memo"])
-    print(f"\n(policy store: {used})")
+    print(f"\n(policy store: {used} | memo drafter: {drafter_name})")
 
 
 if __name__ == "__main__":
