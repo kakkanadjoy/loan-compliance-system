@@ -81,11 +81,33 @@ class LoanRecord(BaseModel):
 # Endpoints
 # --------------------------------------------------------------------------
 
+@app.get("/", include_in_schema=False)
+def root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/docs")
+
 @app.get("/health")
 def health(request: Request) -> dict:
     return {"status": "ok", "policy_store": request.app.state.store_kind}
 
+class RedactRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20_000)
 
+
+@app.post("/redact")
+def redact(req: RedactRequest) -> dict:
+    """PII redaction gate: text in, placeholders out. The findings report
+    contains entity types and counts only — never the detected values."""
+    try:
+        from app import privacy  # lazy: presidio + spaCy load is heavy
+        return privacy.redact_text(req.text)
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="redaction unavailable: presidio not installed",
+        )
+    
+    
 @app.post("/evaluate")
 def evaluate(record: LoanRecord, store=Depends(get_store)) -> dict:
     """Judge a loan record: exceptions, citations, waiver chains, routing."""
