@@ -1,0 +1,52 @@
+name: deploy
+
+# Push to main -> tests -> build image in ACR -> point the Container App at it.
+# Identity: OIDC federation (no stored credentials). The id-token permission
+# below is what lets this workflow mint its proof-of-identity token.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false   # never abandon a half-finished deploy
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install numpy pandas pyyaml reportlab pypdf xgboost scikit-learn pytest fastapi httpx langgraph presidio-analyzer presidio-anonymizer click openai
+      - run: python -m spacy download en_core_web_sm
+      - name: Test gate — nothing deploys unless green
+        run: cd backend && python -m pytest tests/ -q
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Azure login (OIDC — short-lived token, nothing stored)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build image in ACR, tagged with the commit hash
+        run: az acr build --registry kakkaloancompliance --image loan-compliance:${{ github.sha }} .
+
+      - name: Point the Container App at the new image
+        run: >
+          az containerapp update
+          --name loan-compliance-api
+          --resource-group rg-loan-compliance
+          --image kakkaloancompliance.azurecr.io/loan-compliance:${{ github.sha }}
