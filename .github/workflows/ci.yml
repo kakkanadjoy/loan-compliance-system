@@ -7,7 +7,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
-      - run: pip install numpy pandas pyyaml reportlab pypdf xgboost scikit-learn pytest fastapi httpx langgraph  presidio-analyzer presidio-anonymizer
+      - run: pip install numpy pandas pyyaml reportlab pypdf xgboost scikit-learn pytest fastapi httpx langgraph  presidio-analyzer presidio-anonymizer click
       - run: python -m spacy download en_core_web_sm
       - name: Round-trip + rules engine tests
         run: cd backend && python -m pytest tests/ -q
