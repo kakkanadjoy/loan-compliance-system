@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+data
+docs
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+**/.pytest_cache
+mlflow.db
+**/mlflow.db
+mlruns
+.env
+*.zip
