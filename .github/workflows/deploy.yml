@@ -28,36 +28,36 @@ jobs:
       - name: Test gate — nothing deploys unless green
         run: cd backend && python -m pytest tests/ -q
 
-build-and-deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
+  build-and-deploy:
+      needs: test
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v5
 
-      - name: Azure login (OIDC — short-lived token, nothing stored)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        - name: Azure login (OIDC — short-lived token, nothing stored)
+          uses: azure/login@v2
+          with:
+            client-id: ${{ vars.AZURE_CLIENT_ID }}
+            tenant-id: ${{ vars.AZURE_TENANT_ID }}
+            subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Authenticate Docker to ACR
-        run: az acr login --name kakkaloancompliance
+        - name: Authenticate Docker to ACR
+          run: az acr login --name kakkaloancompliance
 
-      - uses: docker/setup-buildx-action@v3
+        - uses: docker/setup-buildx-action@v3
 
-      - name: Build on the runner, push to ACR (layer cache persists between runs)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: kakkaloancompliance.azurecr.io/loan-compliance:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        - name: Build on the runner, push to ACR (layer cache persists between runs)
+          uses: docker/build-push-action@v6
+          with:
+            context: .
+            push: true
+            tags: kakkaloancompliance.azurecr.io/loan-compliance:${{ github.sha }}
+            cache-from: type=gha
+            cache-to: type=gha,mode=max
 
-      - name: Point the Container App at the new image
-        run: >
-          az containerapp update
-          --name loan-compliance-api
-          --resource-group rg-loan-compliance
-          --image kakkaloancompliance.azurecr.io/loan-compliance:${{ github.sha }}
+        - name: Point the Container App at the new image
+          run: >
+            az containerapp update
+            --name loan-compliance-api
+            --resource-group rg-loan-compliance
+            --image kakkaloancompliance.azurecr.io/loan-compliance:${{ github.sha }}
