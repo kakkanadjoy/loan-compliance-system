@@ -48,7 +48,7 @@
   .qmeta{font-size:12px; color:var(--muted)}
   .qamt{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; text-align:right}
   .dot{width:8px; height:8px; border-radius:50%; flex:none}
-  .dot.clean{background:var(--pass)} .dot.flag{background:var(--sev-high)}
+  .dot.clean{background:var(--pass)} .dot.note{background:var(--sev-low)} .dot.flag{background:var(--sev-high)}
 
   /* ── detail ──────────────────────────────────── */
   .detail-head{display:flex; gap:20px; align-items:flex-start; padding:20px; flex-wrap:wrap}
@@ -180,7 +180,9 @@ async function loadQueue(){
     loans.forEach(l => {
       const b = document.createElement('button');
       b.className = 'qrow'; b.setAttribute('data-id', l.loan_id);
-      b.innerHTML = `<span class="dot ${l.needs_review ? 'flag':'clean'}" title="${l.needs_review?'flagged':'clean'}"></span>
+      const tone = l.needs_review ? 'flag' : (l.exceptions > 0 ? 'note' : 'clean');
+      const toneLabel = {flag:'escalation flagged', note:'exceptions, routine review', clean:'clean'}[tone];
+      b.innerHTML = `<span class="dot ${tone}" title="${toneLabel}"></span>
         <span><span class="qid">${l.loan_id}</span><br><span class="qmeta">${l.loan_type.replace('_',' ')}</span></span>
         <span class="qamt">${fmtUSD(l.loan_amount)}</span>`;
       b.addEventListener('click', () => openLoan(l.loan_id));
