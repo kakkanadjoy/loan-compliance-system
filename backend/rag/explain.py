@@ -72,7 +72,7 @@ class DbPolicyStore:
     def __init__(self, database_url: str = DATABASE_URL):
         import psycopg  # local import: file mode shouldn't require psycopg
 
-        self._conn = psycopg.connect(database_url)
+        self._conn = psycopg.connect(database_url, connect_timeout=5)
 
     def by_exception_code(self, code: str) -> dict | None:
         with self._conn.cursor() as cur:
