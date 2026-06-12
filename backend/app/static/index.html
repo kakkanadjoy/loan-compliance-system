@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Compliance Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAFAF7; --card:#FFFFFF; --ink:#1A2433; --muted:#5E6B7C;
+    --rule:#E4E2DA; --accent:#0F4C81; --accent-soft:#EAF1F7;
+    --pass:#166534; --pass-soft:#EAF4EC;
+    --sev-low:#8C6D1F; --sev-med:#B45309; --sev-high:#C2410C; --sev-severe:#9F1239;
+    --stamp-red:#9F1239; --stamp-blue:#0F4C81; --stamp-green:#166534;
+  }
+  *{box-sizing:border-box; margin:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important; transition:none!important} }
+  body{background:var(--paper); color:var(--ink); font-family:'Public Sans',system-ui,sans-serif; font-size:15px; line-height:1.55}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  a{color:var(--accent)}
+  button{font:inherit; cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* ── header band ─────────────────────────────── */
+  header{border-bottom:3px double var(--rule); background:var(--card)}
+  .band{max-width:1180px; margin:0 auto; padding:20px 24px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap}
+  .wordmark{font-family:'Libre Caslon Text',serif; font-size:24px; font-weight:700; letter-spacing:.01em}
+  .wordmark small{display:block; font-family:'Public Sans'; font-weight:600; font-size:11px; letter-spacing:.18em; color:var(--muted); text-transform:uppercase}
+  .spacer{flex:1}
+  .badge{font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 10px; border:1px solid var(--rule); border-radius:999px; color:var(--muted); background:var(--paper)}
+  .badge.ok{border-color:var(--pass); color:var(--pass); background:var(--pass-soft)}
+
+  /* ── layout ──────────────────────────────────── */
+  .wrap{max-width:1180px; margin:0 auto; padding:24px; display:grid; grid-template-columns:320px 1fr; gap:24px}
+  @media (max-width:880px){ .wrap{grid-template-columns:1fr} }
+  .panel{background:var(--card); border:1px solid var(--rule); border-radius:10px}
+  .panel h2{font-family:'Public Sans'; font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); padding:14px 16px 10px; border-bottom:1px solid var(--rule)}
+
+  /* ── queue ───────────────────────────────────── */
+  .queue{max-height:70vh; overflow:auto}
+  .qrow{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--rule); padding:12px 16px; transition:background .12s}
+  .qrow:hover{background:var(--accent-soft)}
+  .qrow[aria-current="true"]{background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent)}
+  .qid{font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600}
+  .qmeta{font-size:12px; color:var(--muted)}
+  .qamt{margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:13px; text-align:right}
+  .dot{width:8px; height:8px; border-radius:50%; flex:none}
+  .dot.clean{background:var(--pass)} .dot.flag{background:var(--sev-high)}
+
+  /* ── detail ──────────────────────────────────── */
+  .detail-head{display:flex; gap:20px; align-items:flex-start; padding:20px; flex-wrap:wrap}
+  .loan-title{font-family:'Libre Caslon Text',serif; font-size:26px; font-weight:700}
+  .loan-sub{color:var(--muted); margin-top:2px}
+  .figures{display:flex; gap:28px; padding:0 20px 16px; flex-wrap:wrap}
+  .fig label{display:block; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+  .fig div{font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600}
+
+  /* the signature: routing stamp */
+  .stamp{margin-left:auto; align-self:center; transform:rotate(-4deg); border:3px solid currentColor; border-radius:8px; padding:8px 14px; position:relative; font-family:'Libre Caslon Text',serif; font-weight:700; letter-spacing:.12em; font-size:18px; text-transform:uppercase; opacity:.92; box-shadow:0 0 0 2px var(--card), 0 0 0 3.5px currentColor}
+  .stamp::after{content:attr(data-sub); display:block; font-family:'Public Sans'; font-weight:600; font-size:9px; letter-spacing:.22em; text-align:center; opacity:.85}
+  .stamp.fast{color:var(--stamp-green)} .stamp.review{color:var(--stamp-blue)} .stamp.compliance{color:var(--stamp-red)}
+  @keyframes press{from{transform:rotate(-4deg) scale(1.6); opacity:0} to{transform:rotate(-4deg) scale(1); opacity:.92}}
+  .stamp.pressed{animation:press .28s cubic-bezier(.2,.9,.3,1.2)}
+
+  /* exception slips */
+  .slips{padding:6px 20px 20px; display:grid; gap:12px}
+  .slip{border:1px solid var(--rule); border-left:5px solid var(--sev); border-radius:6px; background:var(--card); padding:12px 14px}
+  .slip-head{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+  .slip-code{font-family:'IBM Plex Mono',monospace; font-weight:600}
+  .slip-title{font-weight:600}
+  .slip-sec{color:var(--muted); font-size:13px}
+  .sev-tag{margin-left:auto; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sev)}
+  .ledger{font-family:'IBM Plex Mono',monospace; font-size:13px; margin-top:6px}
+  .ledger b{font-weight:600}
+  .waiver{font-size:13px; color:var(--muted); margin-top:4px}
+  .waiver strong{color:var(--sev-severe)}
+  details.policy{margin-top:8px}
+  details.policy summary{font-size:13px; color:var(--accent); cursor:pointer}
+  details.policy p{font-size:13px; color:var(--muted); margin-top:6px; padding-left:10px; border-left:2px solid var(--rule); white-space:pre-wrap}
+  .clean-note{padding:4px 20px 20px; color:var(--pass); font-weight:600}
+
+  /* agent memo */
+  .memo-bar{display:flex; align-items:center; gap:12px; padding:0 20px 16px}
+  .btn{background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 16px; font-weight:600}
+  .btn:hover{filter:brightness(1.08)}
+  .btn[disabled]{opacity:.55; cursor:wait}
+  .drafter-note{font-size:12px; color:var(--muted)}
+  .memo{margin:0 20px 20px; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:16px 18px; font-family:'IBM Plex Mono',monospace; font-size:13px; white-space:pre-wrap; display:none}
+  .memo .path{color:var(--muted); font-size:12px; margin-bottom:10px; display:block}
+
+  /* desks */
+  .desks{max-width:1180px; margin:0 auto 40px; padding:0 24px; display:grid; grid-template-columns:1fr 1fr; gap:24px}
+  @media (max-width:880px){ .desks{grid-template-columns:1fr} }
+  .desk-body{padding:16px}
+  .field{display:flex; gap:8px}
+  .field input,.field textarea{flex:1; font:inherit; padding:9px 12px; border:1px solid var(--rule); border-radius:6px; background:var(--paper); color:var(--ink)}
+  .field textarea{font-family:'IBM Plex Mono',monospace; font-size:13px; min-height:74px; resize:vertical}
+  .results{margin-top:14px; display:grid; gap:10px}
+  .hit{border:1px solid var(--rule); border-radius:6px; padding:10px 12px}
+  .hit .via{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent)}
+  .hit p{font-size:13px; color:var(--muted); margin-top:4px}
+  .empty{color:var(--muted); padding:14px 16px}
+  footer{max-width:1180px; margin:0 auto; padding:0 24px 32px; color:var(--muted); font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="band">
+    <div class="wordmark">Loan Compliance Desk<small>Commercial Credit · Policy Manual rev. 2026</small></div>
+    <span class="spacer"></span>
+    <span id="store-badge" class="badge">checking store…</span>
+    <a class="badge" href="/docs">API /docs</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel">
+    <h2>Review queue</h2>
+    <div id="queue" class="queue"><div class="empty">Loading the day's applications…</div></div>
+  </section>
+
+  <section class="panel" id="detail" aria-live="polite">
+    <div class="empty" style="padding:40px 20px">Select an application from the queue. Its findings, the governing policy text, and the routing decision appear here.</div>
+  </section>
+</main>
+
+<section class="desks">
+  <div class="panel">
+    <h2>Policy manual search</h2>
+    <div class="desk-body">
+      <div class="field">
+        <input id="q" type="search" placeholder='Ask in plain language — try "borrower exaggerated their income"' aria-label="Search the policy manual">
+        <button class="btn" id="q-go">Search</button>
+      </div>
+      <div id="q-results" class="results"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Redaction desk</h2>
+    <div class="desk-body">
+      <div class="field" style="flex-direction:column">
+        <textarea id="r-text" aria-label="Text to redact">Borrower John Smith (SSN 078-05-1120, john.smith@example.com) stated income contradicts the tax documents.</textarea>
+        <button class="btn" id="r-go" style="align-self:flex-start">Redact PII</button>
+      </div>
+      <div id="r-results" class="results"></div>
+    </div>
+  </div>
+</section>
+
+<footer>Synthetic portfolio · facts per rules engine · citations per policy corpus · memos drafted under the facts-only contract.</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmtUSD = n => n.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0});
+const SEV = {low:'var(--sev-low)', medium:'var(--sev-med)', high:'var(--sev-high)', severe:'var(--sev-severe)'};
+const STAMP = {
+  fast_track:        {cls:'fast',       label:'Fast track',        sub:'no sign-off required'},
+  manager_review:    {cls:'review',     label:'Manager review',    sub:'exceptions noted'},
+  senior_review:     {cls:'review',     label:'Senior review',     sub:'exceptions noted'},
+  compliance_review: {cls:'compliance', label:'Compliance review', sub:'not waivable'},
+};
+let currentLoan = null;
+
+async function jget(url, opts){ const r = await fetch(url, opts); if(!r.ok) throw new Error((await r.text())||r.status); return r.json(); }
+
+async function health(){
+  try{ const h = await jget('/health');
+    const b = $('#store-badge'); b.textContent = 'policy store: '+h.policy_store; b.classList.add('ok');
+  }catch(e){ $('#store-badge').textContent = 'service waking…'; setTimeout(health, 4000); }
+}
+
+async function loadQueue(){
+  try{
+    const loans = await jget('/loans?limit=18');
+    $('#queue').innerHTML = '';
+    loans.forEach(l => {
+      const b = document.createElement('button');
+      b.className = 'qrow'; b.setAttribute('data-id', l.loan_id);
+      b.innerHTML = `<span class="dot ${l.needs_review ? 'flag':'clean'}" title="${l.needs_review?'flagged':'clean'}"></span>
+        <span><span class="qid">${l.loan_id}</span><br><span class="qmeta">${l.loan_type.replace('_',' ')}</span></span>
+        <span class="qamt">${fmtUSD(l.loan_amount)}</span>`;
+      b.addEventListener('click', () => openLoan(l.loan_id));
+      $('#queue').appendChild(b);
+    });
+    if(loans.length) openLoan(loans[0].loan_id);
+  }catch(e){ $('#queue').innerHTML = '<div class="empty">Queue unavailable — the service may be waking. Refresh in a moment.</div>'; }
+}
+
+async function openLoan(id){
+  currentLoan = id;
+  document.querySelectorAll('.qrow').forEach(r => r.setAttribute('aria-current', r.dataset.id===id));
+  $('#detail').innerHTML = '<div class="empty" style="padding:40px 20px">Pulling the file…</div>';
+  let e;
+  try{ e = await jget(`/loans/${id}/explain`); }
+  catch(err){ $('#detail').innerHTML = '<div class="empty">Could not load this file. '+err.message+'</div>'; return; }
+  const st = STAMP[e.routing] || STAMP.manager_review;
+  const slips = e.findings.map(f => `
+    <article class="slip" style="--sev:${SEV[f.severity]||'var(--sev-med)'}">
+      <div class="slip-head">
+        <span class="slip-code">${f.exception_code}</span>
+        <span class="slip-title">${f.title}</span>
+        <span class="slip-sec">§ ${f.policy_section}</span>
+        <span class="sev-tag">${f.severity}</span>
+      </div>
+      <div class="ledger">observed <b>${f.observed}</b> · allowed <b>${f.threshold}</b> · ${f.field}</div>
+      <div class="waiver">${f.waivable_by.length
+          ? 'Waivable by: '+f.waivable_by.join(', ')
+          : '<strong>Not waivable</strong>'+(f.routes_to ? ' — routes to '+f.routes_to : '')}</div>
+      <details class="policy"><summary>Governing policy text</summary><p>${f.policy_text.replace(/^#.*$/m,'').trim()}</p></details>
+    </article>`).join('');
+  $('#detail').innerHTML = `
+    <div class="detail-head">
+      <div>
+        <div class="loan-title mono">${e.loan_id}</div>
+        <div class="loan-sub">${e.loan_type.replace('_',' ')} · application under review</div>
+      </div>
+      <div class="stamp pressed ${st.cls}" data-sub="${st.sub}">${st.label}</div>
+    </div>
+    <div class="figures">
+      <div class="fig"><label>Amount</label><div>${fmtUSD(e.loan_amount)}</div></div>
+      <div class="fig"><label>Risk score</label><div>${e.risk_score.toFixed(2)}</div></div>
+      <div class="fig"><label>Exceptions</label><div>${e.exception_count}</div></div>
+      <div class="fig"><label>Max severity</label><div>${e.max_severity}</div></div>
+    </div>
+    ${e.findings.length ? `<div class="slips">${slips}</div>`
+                        : `<div class="clean-note">No policy exceptions. Eligible per all applicable rules.</div>`}
+    <div class="memo-bar">
+      <button class="btn" id="review-go">Run agent review</button>
+      <span class="drafter-note" id="drafter-note">gather → assess → memo, with policy receipts</span>
+    </div>
+    <pre class="memo" id="memo"></pre>`;
+  $('#review-go').addEventListener('click', runReview);
+}
+
+async function runReview(){
+  const btn = $('#review-go'), memo = $('#memo'), note = $('#drafter-note');
+  btn.disabled = true; btn.textContent = 'Reviewing…'; note.textContent = 'agent walking the graph; the drafter is writing';
+  try{
+    const r = await jget(`/loans/${currentLoan}/review`);
+    memo.style.display = 'block';
+    memo.innerHTML = `<span class="path">path: ${r.path.join(' → ')} · drafter: ${r.drafter}</span>` + r.memo.replace(/</g,'&lt;');
+    note.textContent = r.drafter === 'azure llm' ? 'prose by the model; every fact from the rules engine' : 'template drafter (no LLM configured)';
+  }catch(err){ memo.style.display='block'; memo.textContent = 'Review unavailable: '+err.message; }
+  btn.disabled = false; btn.textContent = 'Run agent review';
+}
+
+$('#q-go').addEventListener('click', async () => {
+  const q = $('#q').value.trim(); if(!q) return;
+  $('#q-results').innerHTML = '<div class="empty">Consulting the manual…</div>';
+  try{
+    const r = await jget(`/policy/search?q=${encodeURIComponent(q)}&k=4`);
+    $('#q-results').innerHTML = r.results.map(h => `
+      <div class="hit">
+        <strong>${h.title}</strong> <span class="slip-sec">${h.section ? '§ '+h.section : ''} ${h.exception_code||''}</span>
+        <span class="via"> · via ${h.in_vector&&h.in_keyword?'vector+keyword':h.in_vector?'vector':'keyword'}</span>
+        <p>${h.body.replace(/^#.*$/m,'').trim().slice(0,220)}…</p>
+      </div>`).join('') || '<div class="empty">No matching sections.</div>';
+  }catch(e){ $('#q-results').innerHTML = '<div class="empty">Search needs the database — it may be stopped or warming. ('+e.message.slice(0,120)+')</div>'; }
+});
+$('#q').addEventListener('keydown', e => { if(e.key==='Enter') $('#q-go').click(); });
+
+$('#r-go').addEventListener('click', async () => {
+  $('#r-results').innerHTML = '<div class="empty">Scrubbing…</div>';
+  try{
+    const r = await jget('/redact', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: $('#r-text').value})});
+    const counts = Object.entries(r.findings).map(([k,v]) => `${k}×${v}`).join(' · ') || 'nothing detected';
+    $('#r-results').innerHTML = `<div class="hit"><span class="via">${counts}${r.nlp_available?'':' · name detection off (no model)'}</span><p class="mono">${r.redacted.replace(/</g,'&lt;')}</p></div>`;
+  }catch(e){ $('#r-results').innerHTML = '<div class="empty">Redaction unavailable: '+e.message+'</div>'; }
+});
+
+health(); loadQueue();
+</script>
+</body>
+</html>

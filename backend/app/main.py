@@ -83,12 +83,14 @@ class LoanRecord(BaseModel):
 
 @app.get("/", include_in_schema=False)
 def root():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse("/docs")
+    from fastapi.responses import FileResponse
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
+
 
 @app.get("/health")
 def health(request: Request) -> dict:
     return {"status": "ok", "policy_store": request.app.state.store_kind}
+
 
 class RedactRequest(BaseModel):
     text: str = Field(min_length=1, max_length=20_000)
@@ -106,8 +108,8 @@ def redact(req: RedactRequest) -> dict:
             status_code=503,
             detail="redaction unavailable: presidio not installed",
         )
-    
-    
+
+
 @app.post("/evaluate")
 def evaluate(record: LoanRecord, store=Depends(get_store)) -> dict:
     """Judge a loan record: exceptions, citations, waiver chains, routing."""
@@ -122,6 +124,62 @@ def explain_loan(loan_id: str, store=Depends(get_store)) -> dict:
     except SystemExit as e:  # load_record exits on missing file/loan
         raise HTTPException(status_code=404, detail=str(e))
     return explain_record(record, store=store)
+
+
+@app.get("/loans")
+def list_loans(limit: int = Query(default=18, ge=1, le=50)) -> list:
+    """The review queue: demo loans first, then the synthetic portfolio."""
+    import json as _json
+
+    from rag import explain as explain_module
+
+    path = explain_module.DATA_DIR / "records.jsonl"
+    if not path.exists():
+        return []
+    demos, rest = [], []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            rec = _json.loads(line)
+            row = {
+                "loan_id": rec["loan_id"],
+                "loan_type": rec["loan_type"],
+                "loan_amount": rec["loan_amount"],
+                "needs_review": bool(rec.get("label_needs_review")),
+                "exceptions": len(rec.get("ground_truth_exceptions", [])),
+            }
+            (demos if rec["loan_id"].startswith("APP-2024") else rest).append(row)
+    return (demos + rest)[:limit]
+
+
+@app.get("/loans/{loan_id}/review")
+def review_loan_endpoint(loan_id: str, store=Depends(get_store)) -> dict:
+    """Run the LangGraph review agent: gather -> branch -> memo.
+    Uses the LLM drafter when credentials are configured, the deterministic
+    template otherwise — same facts either way."""
+    from agent.llm_memo import llm_available, llm_memo_drafter
+    from agent.review_agent import build_graph, template_memo
+
+    try:
+        record = load_record(loan_id)
+    except SystemExit as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if llm_available():
+        drafter, drafter_name = llm_memo_drafter, "azure llm"
+    else:
+        drafter, drafter_name = template_memo, "template"
+    graph = build_graph(store=store, memo_drafter=drafter)
+    final = graph.invoke({"record": record, "path": []})
+    return {
+        "loan_id": loan_id,
+        "decision": final["decision"],
+        "queue": final["queue"],
+        "minimum_authority": final["minimum_authority"],
+        "blocking_codes": final["blocking_codes"],
+        "path": final["path"],
+        "memo": final["memo"],
+        "drafter": drafter_name,
+    }
 
 
 @app.get("/policy/search")
